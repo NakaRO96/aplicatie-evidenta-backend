@@ -74,3 +74,5 @@ cron.schedule('0 0 * * *', async () => {
 app.listen(PORT, () => {
   console.log(`Serverul rulează pe portul ${PORT}`);
 });
+
+//test git
