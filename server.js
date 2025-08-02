@@ -12,7 +12,13 @@ const MONGO_URI = process.env.MONGO_URI;
 
 // Middleware-uri
 app.use(express.json()); // Permite serverului să parseze JSON din corpul cererilor
-app.use(cors()); // Permite cereri cross-origin de la frontend
+
+// === CONFIGURARE CORS CORECTĂ ===
+const corsOptions = {
+    origin: 'https://aplicatie-evidenta-frontend.onrender.com',
+    optionsSuccessStatus: 200 // Pentru browserele mai vechi
+};
+app.use(cors(corsOptions));
 
 // Conectare la MongoDB
 mongoose.connect(MONGO_URI)
