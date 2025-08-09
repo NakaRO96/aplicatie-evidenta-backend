@@ -4,6 +4,9 @@ const authMiddleware = require('../middleware/authMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
 const simulationController = require('../controllers/simulationController');
 
+// Noua rută pentru a obține top 3 simulări
+router.get('/top', authMiddleware, simulationController.getTopSimulations);
+
 // Adaugă un nou rezultat de simulare (necesită autentificare și rol de admin)
 router.post('/', authMiddleware, adminMiddleware, simulationController.addSimulationResult);
 
