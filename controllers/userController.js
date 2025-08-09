@@ -2,25 +2,43 @@ const User = require('../models/User');
 const SimulationResult = require('../models/SimulationResult');
 const bcrypt = require('bcryptjs');
 
-// Obține toți utilizatorii (cu filtre pentru activi/expirați/toți)
-exports.getAllUsers = async (req, res) => {
-  try {
-    let users;
-    const filter = req.query.filter; // Ex: ?filter=active, ?filter=expired
+// NOU: Funcția pentru a obține utilizatorii cu paginare și filtre
+// Aceasta înlocuiește vechea funcție getAllUsers
+exports.getUsersWithPagination = async (req, res) => {
+    // Extrage parametrii de paginare și filtrare din query
+    const { page = 1, limit = 10, filter = 'all' } = req.query;
 
-    // Caută userii și nu include parola în rezultat
-    if (filter === 'active') {
-      users = await User.find({ subscriptionEndDate: { $gte: new Date() } }).select('-password');
-    } else if (filter === 'expired') {
-      users = await User.find({ subscriptionEndDate: { $lt: new Date() } }).select('-password');
-    } else { // 'all' sau fără filtru
-      users = await User.find().select('-password');
-    }
-    res.json(users);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Eroare server');
-  }
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    let query = {};
+
+    // Adaugă logica de filtrare existentă
+    if (filter === 'active') {
+      const now = new Date();
+      query.subscriptionEndDate = { $gte: now };
+    } else if (filter === 'expired') {
+      const now = new Date();
+      query.subscriptionEndDate = { $lt: now };
+    }
+    
+    try {
+        const users = await User.find(query)
+            .sort({ subscriptionEndDate: -1 })
+            .skip(skip)
+            .limit(parseInt(limit))
+            .select('-password'); // Nu include parola în rezultat
+        
+        const totalUsers = await User.countDocuments(query);
+        
+        res.json({
+            users,
+            totalPages: Math.ceil(totalUsers / limit),
+            currentPage: parseInt(page),
+            totalUsers
+        });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Eroare server');
+    }
 };
 
 // Obține detalii despre un utilizator specific
@@ -93,29 +111,29 @@ exports.deleteUser = async (req, res) => {
 
 // Creează un utilizator nou (doar admin)
 exports.createUser = async (req, res) => {
-    const { name, phoneNumber, password, role } = req.body;
-    try {
-        let user = await User.findOne({ phoneNumber });
-        if (user) {
-            return res.status(400).json({ msg: 'Un utilizator cu acest număr de telefon există deja.' });
-        }
+    const { name, phoneNumber, password, role } = req.body;
+    try {
+        let user = await User.findOne({ phoneNumber });
+        if (user) {
+            return res.status(400).json({ msg: 'Un utilizator cu acest număr de telefon există deja.' });
+        }
 
-        user = new User({
-            name,
-            phoneNumber,
-            password,
-            role: role || 'client', // Rolul implicit este 'client'
-            subscriptionEndDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)) // Abonament valabil 1 an implicit
-        });
+        user = new User({
+            name,
+            phoneNumber,
+            password,
+            role: role || 'client', // Rolul implicit este 'client'
+            subscriptionEndDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)) // Abonament valabil 1 an implicit
+        });
 
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(password, salt);
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(password, salt);
 
-        await user.save();
-        res.status(201).json({ msg: 'Utilizator creat cu succes!', user: user.toObject({ getters: true, versionKey: false, transform: (doc, ret) => { delete ret.password; return ret; } }) });
+        await user.save();
+        res.status(201).json({ msg: 'Utilizator creat cu succes!', user: user.toObject({ getters: true, versionKey: false, transform: (doc, ret) => { delete ret.password; return ret; } }) });
 
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Eroare server');
-    }
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Eroare server');
+    }
 };

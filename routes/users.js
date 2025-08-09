@@ -4,8 +4,8 @@ const authMiddleware = require('../middleware/authMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
 const userController = require('../controllers/userController');
 
-// Ruta pentru a obține toți utilizatorii - necesită autentificare și rol de admin
-router.get('/', authMiddleware, adminMiddleware, userController.getAllUsers);
+// RUTA MODIFICATĂ pentru a obține toți utilizatorii cu paginare
+router.get('/', authMiddleware, adminMiddleware, userController.getUsersWithPagination);
 
 // RUTA NOUĂ PENTRU A CREA UN UTILIZATOR
 // Necesită autentificare și rol de admin
