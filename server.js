@@ -13,12 +13,14 @@ const MONGO_URI = process.env.MONGO_URI;
 // Middleware-uri
 app.use(express.json()); // Permite serverului să parseze JSON din corpul cererilor
 
-// === CONFIGURARE CORS CORECTĂ ===
+// === CONFIGURARE CORS CORECTĂ ȘI ROBUSTĂ ===
 const corsOptions = {
-    origin: 'https://aplicatie-evidenta-frontend.onrender.com',
-    optionsSuccessStatus: 200 // Pentru browserele mai vechi
+    origin: 'https://aplicatie-evidenta-frontend.onrender.com', // URL-ul exact al frontend-ului tău de pe Render
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Metodele HTTP permise
+    credentials: true, // Permite trimiterea de cookies/header-e de autentificare (crucial pentru token-uri JWT)
+    optionsSuccessStatus: 204 // Răspuns standard pentru cereri preflight OPTIONS
 };
-app.use(cors(corsOptions));
+app.use(cors(corsOptions)); // Aplică middleware-ul CORS cu opțiunile definite
 
 // Conectare la MongoDB
 mongoose.connect(MONGO_URI)
@@ -29,7 +31,6 @@ mongoose.connect(MONGO_URI)
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const simulationRoutes = require('./routes/simulations');
-// Poți adăuga rute separate pentru prezență și abonamente, dacă logica devine mai complexă
 
 // Folosește rutele
 app.use('/api/auth', authRoutes);
@@ -68,7 +69,6 @@ cron.schedule('0 0 * * *', async () => {
     console.error('Eroare la verificarea abonamentelor:', error);
   }
 });
-
 
 // Pornirea serverului
 app.listen(PORT, () => {
