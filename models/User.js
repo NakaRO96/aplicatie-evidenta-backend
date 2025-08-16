@@ -5,7 +5,7 @@ const userSchema = new mongoose.Schema({
   phoneNumber: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   role: { type: String, enum: ['admin', 'client'], default: 'client' },
-  // NOU: Câmpuri pentru resetarea parolei
+  // Câmpuri pentru resetarea parolei - Acestea sunt deja incluse din cerința ta anterioară
   resetPasswordToken: { type: String, default: null },
   resetPasswordExpires: { type: Date, default: null },
   subscriptionEndDate: { type: Date, default: null },
@@ -15,17 +15,8 @@ const userSchema = new mongoose.Schema({
       present: { type: Boolean, default: true }
     }
   ],
-  simulationResults: [
-    {
-      date: { type: Date, default: Date.now },
-      rawTime: { type: Number, required: true },
-      penaltyTime: { type: Number, default: 0 },
-      totalTime: { type: Number, required: true },
-      penaltiesList: [{ type: String }],
-      eliminatedObstacles: [{ type: String }],
-      checkpointTimes: [{ type: Number }]
-    }
-  ]
+  // Array-ul 'simulationResults' a fost ELIMINAT, deoarece simulările sunt gestionate
+  // printr-o colecție separată ('SimulationResult') și un model dedicat.
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);
