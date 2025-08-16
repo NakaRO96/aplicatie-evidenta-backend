@@ -11,6 +11,9 @@ router.get('/', authMiddleware, adminMiddleware, userController.getUsersWithPagi
 // Necesită autentificare și rol de admin
 router.post('/', authMiddleware, adminMiddleware, userController.createUser);
 
+// === NOU: RUTA PENTRU SCHIMBAREA PAROLEI TREBUIE SĂ FIE ÎNAINTEA RUTELOR CU ID GENERIC ===
+router.put('/change-password', authMiddleware, userController.changePassword); // Fără adminMiddleware aici, permițând oricui să-și schimbe parola
+
 // Ruta pentru a obține detalii despre un utilizator specific
 // Protejată doar de authMiddleware. Logica de rol (admin vs client care își vede propriul cont)
 // este gestionată DEDICAT în userController.js.

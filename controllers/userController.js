@@ -1,6 +1,6 @@
 const User = require('../models/User');
 const SimulationResult = require('../models/SimulationResult');
-const bcrypt = require('bcryptjs'); // Asigură-te că bcrypt este importat
+const bcrypt = require('bcryptjs');
 
 // NOU: Funcția pentru a obține utilizatorii cu paginare și filtre
 exports.getUsersWithPagination = async (req, res) => {
@@ -60,7 +60,7 @@ exports.getUserDetails = async (req, res) => {
 
 // Editează detalii utilizator (doar admin)
 exports.updateUser = async (req, res) => {
-  const { name, phoneNumber, subscriptionEndDate, attendance, role } = req.body; // Am eliminat 'password' de aici
+  const { name, phoneNumber, subscriptionEndDate, attendance, role } = req.body;
   try {
     let user = await User.findById(req.params.id);
     if (!user) {
@@ -75,10 +75,6 @@ exports.updateUser = async (req, res) => {
     if (attendance && Array.isArray(attendance)) {
         user.attendance = attendance;
     }
-
-    // NOTĂ: Dacă modelul User are un hook pre('save') care criptează parola,
-    // și nu ești sigur că updateUser nu o apelează, poți gestiona separat.
-    // Dar în general, 'password' nu ar trebui să fie în body-ul lui updateUser.
 
     await user.save();
     res.json({ msg: 'Utilizator actualizat', user: user.toObject({ getters: true, versionKey: false, transform: (doc, ret) => { delete ret.password; return ret; } }) });
@@ -134,7 +130,7 @@ exports.createUser = async (req, res) => {
     }
 };
 
-// MODIFICAT: Funcția pentru schimbarea parolei - adăugăm logare detaliată
+// Funcția pentru schimbarea parolei - cu logare detaliată
 exports.changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
@@ -153,15 +149,16 @@ exports.changePassword = async (req, res) => {
 
     // Criptează noua parolă
     const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(newPassword, salt); // Atribuie noua parolă hashuită
+    user.password = await bcrypt.hash(newPassword, salt);
 
-    await user.save(); // Aici poate apărea eroarea dacă password hook-ul este greșit
+    // Salvează utilizatorul. Aici va fi executat hook-ul pre('save') din models/User.js
+    await user.save(); 
 
     res.json({ msg: 'Parola a fost schimbată cu succes.' });
   } catch (err) {
-    // NOU: Loghează eroarea completă, inclusiv stiva, pentru debugging pe Render
+    // Loghează eroarea completă, inclusiv stiva, pentru debugging pe Render
     console.error('Eroare backend la schimbarea parolei:', err.message);
-    console.error('Detalii eroare:', err); // Loghează întregul obiect de eroare
+    console.error('Detalii eroare (stack):', err.stack); // Folosim .stack pentru detalii complete
     res.status(500).send('Eroare de server la schimbarea parolei. Te rugăm să încerci din nou.');
   }
 };
