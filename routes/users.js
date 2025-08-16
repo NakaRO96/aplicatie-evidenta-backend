@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs'); // Asigură-te că bcrypt este importat și aici
+const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -17,20 +17,18 @@ const userSchema = new mongoose.Schema({
   ],
 }, { timestamps: true });
 
-// ACEASTA ESTE SECȚIUNEA CRUCIALĂ ȘI VITALĂ PENTRU FUNCȚIONALITATE: Hook-ul pre('save')
-// Această funcție se execută ÎNAINTE ca un document User să fie salvat în baza de date.
+// Hook-ul pre('save') care criptează parola DOAR dacă a fost modificată
 userSchema.pre('save', async function(next) {
-  // Verifică DOAR dacă câmpul 'password' a fost modificat
-  // (adică, dacă este o parolă nouă la crearea utilizatorului SAU dacă parola existentă a fost schimbată).
-  // Dacă parola nu s-a schimbat, NU O RECIPTEAZĂ, ci trece mai departe.
   if (!this.isModified('password')) {
-    return next(); // Nu face nimic, continuă la salvare
+    return next();
   }
-
-  // Dacă parola a fost modificată, generează un salt și criptează parola
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
-  next(); // Continuă procesul de salvare
+  next();
 });
 
-module.exports = mongoose.model('User', userSchema);
+// === LINIA ESENȚIALĂ: Asigură că modelul este definit o singură dată și exportat corect ===
+// Aceasta verifică dacă modelul 'User' a fost deja definit. Dacă da, îl refolosește.
+// Altfel, îl definește. Acest lucru previne eroarea de a defini același model de două ori
+// și asigură că 'User' este întotdeauna un obiect Mongoose valid.
+module.exports = mongoose.models.User || mongoose.model('User', userSchema);
