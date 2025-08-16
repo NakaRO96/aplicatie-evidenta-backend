@@ -1,7 +1,7 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const crypto = require('crypto'); // NOU: Adaugă crypto pentru a genera token-uri
+const crypto = require('crypto');
 const { sendSMS } = require('../utils/smsService');
 
 exports.register = async (req, res) => {
@@ -12,17 +12,15 @@ exports.register = async (req, res) => {
       return res.status(400).json({ msg: 'Numărul de telefon este deja înregistrat.' });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
+    // MODIFICAT: Nu mai hashui aici parola. Va fi hashuită de hook-ul pre('save') din model.
     user = new User({
       name,
       phoneNumber,
-      password: hashedPassword,
+      password, // Trimitem parola ca text simplu
       role: role || 'client'
     });
 
-    await user.save();
+    await user.save(); // Aici va rula hook-ul pre('save') și va hashui parola
 
     const payload = {
       user: {
@@ -41,8 +39,8 @@ exports.register = async (req, res) => {
       }
     );
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Eroare server');
+    console.error('Eroare la înregistrare:', err.message);
+    res.status(500).send('Eroare server la înregistrare');
   }
 };
 
@@ -76,8 +74,8 @@ exports.login = async (req, res) => {
       }
     );
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Eroare server');
+    console.error('Eroare la login:', err.message);
+    res.status(500).send('Eroare server la autentificare');
   }
 };
 
@@ -110,7 +108,6 @@ exports.forgotPassword = async (req, res) => {
   }
 };
 
-// NOU: Funcția pentru a finaliza resetarea parolei
 exports.resetPassword = async (req, res) => {
   const { token } = req.params;
   const { password } = req.body;
@@ -125,13 +122,13 @@ exports.resetPassword = async (req, res) => {
       return res.status(400).json({ message: 'Token de resetare invalid sau expirat.' });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
+    // MODIFICAT: Nu mai hashui parola aici. Va fi hashuită de hook-ul pre('save') din model.
+    user.password = password; 
 
     user.resetPasswordToken = null;
     user.resetPasswordExpires = null;
 
-    await user.save();
+    await user.save(); // Aici va rula hook-ul pre('save') și va hashui parola
 
     res.status(200).json({ message: 'Parola a fost resetată cu succes.' });
   } catch (error) {

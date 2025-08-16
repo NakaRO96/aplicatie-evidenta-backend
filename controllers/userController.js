@@ -110,18 +110,16 @@ exports.createUser = async (req, res) => {
             return res.status(400).json({ msg: 'Un utilizator cu acest număr de telefon există deja.' });
         }
 
+        // MODIFICAT: Nu mai hashui parola aici. Va fi hashuită de hook-ul pre('save') din model.
         user = new User({
             name,
             phoneNumber,
-            password,
-            role: role || 'client', // Rolul implicit este 'client'
-            subscriptionEndDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)) // Abonament valabil 1 an implicit
+            password, // Trimitem parola ca text simplu
+            role: role || 'client',
+            subscriptionEndDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1))
         });
 
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(password, salt);
-
-        await user.save();
+        await user.save(); // Aici va rula hook-ul pre('save') și va hashui parola
         res.status(201).json({ msg: 'Utilizator creat cu succes!', user: user.toObject({ getters: true, versionKey: false, transform: (doc, ret) => { delete ret.password; return ret; } }) });
 
     } catch (err) {
@@ -130,35 +128,33 @@ exports.createUser = async (req, res) => {
     }
 };
 
-// Funcția pentru schimbarea parolei - cu logare detaliată
+// Funcția pentru schimbarea parolei - FĂRĂ HASHUIRE MANUALĂ AICI
 exports.changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    const userId = req.user.id; // Extrage ID-ul utilizatorului din token
+    const userId = req.user.id;
 
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ msg: 'Utilizatorul nu a fost găsit.' });
     }
 
-    // Verifică parola curentă
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) {
       return res.status(400).json({ msg: 'Parola curentă este incorectă.' });
     }
 
-    // Criptează noua parolă
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(newPassword, salt);
+    // MODIFICAT: Atribuie parola nouă ca text simplu.
+    // Hook-ul pre('save') din models/User.js o va hashui.
+    user.password = newPassword; 
 
     // Salvează utilizatorul. Aici va fi executat hook-ul pre('save') din models/User.js
     await user.save(); 
 
     res.json({ msg: 'Parola a fost schimbată cu succes.' });
   } catch (err) {
-    // Loghează eroarea completă, inclusiv stiva, pentru debugging pe Render
     console.error('Eroare backend la schimbarea parolei:', err.message);
-    console.error('Detalii eroare (stack):', err.stack); // Folosim .stack pentru detalii complete
+    console.error('Detalii eroare (stack):', err.stack);
     res.status(500).send('Eroare de server la schimbarea parolei. Te rugăm să încerci din nou.');
   }
 };
