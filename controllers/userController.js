@@ -1,17 +1,14 @@
 const User = require('../models/User');
 const SimulationResult = require('../models/SimulationResult');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcryptjs'); // Asigură-te că bcrypt este importat
 
 // NOU: Funcția pentru a obține utilizatorii cu paginare și filtre
-// Aceasta înlocuiește vechea funcție getAllUsers
 exports.getUsersWithPagination = async (req, res) => {
-    // Extrage parametrii de paginare și filtrare din query
     const { page = 1, limit = 10, filter = 'all' } = req.query;
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     let query = {};
 
-    // Adaugă logica de filtrare existentă
     if (filter === 'active') {
       const now = new Date();
       query.subscriptionEndDate = { $gte: now };
@@ -25,7 +22,7 @@ exports.getUsersWithPagination = async (req, res) => {
             .sort({ subscriptionEndDate: -1 })
             .skip(skip)
             .limit(parseInt(limit))
-            .select('-password'); // Nu include parola în rezultat
+            .select('-password');
         
         const totalUsers = await User.countDocuments(query);
         
@@ -36,24 +33,19 @@ exports.getUsersWithPagination = async (req, res) => {
             totalUsers
         });
     } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Eroare server');
+        console.error('Eroare la getUsersWithPagination:', err.message);
+        res.status(500).send('Eroare server la preluarea utilizatorilor.');
     }
 };
 
 // Obține detalii despre un utilizator specific
 exports.getUserDetails = async (req, res) => {
   try {
-    // req.user.id este ID-ul utilizatorului autentificat din token
-    // req.params.id este ID-ul utilizatorului cerut în URL
-    
-    // Un administrator poate vedea detaliile oricărui utilizator.
-    // Un client poate vedea doar detaliile propriului cont.
     if (req.user.role === 'client' && req.user.id !== req.params.id) {
       return res.status(403).json({ msg: 'Acces interzis. Nu aveți permisiunea de a vedea detaliile altui utilizator.' });
     }
 
-    const user = await User.findById(req.params.id).select('-password'); // Exclude parola
+    const user = await User.findById(req.params.id).select('-password');
     if (!user) {
       return res.status(404).json({ msg: 'Utilizator negăsit' });
     }
@@ -61,14 +53,14 @@ exports.getUserDetails = async (req, res) => {
 
     res.json({ user, simulationResults });
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Eroare server');
+    console.error('Eroare la getUserDetails:', err.message);
+    res.status(500).send('Eroare server la preluarea detaliilor utilizatorului.');
   }
 };
 
 // Editează detalii utilizator (doar admin)
 exports.updateUser = async (req, res) => {
-  const { name, phoneNumber, subscriptionEndDate, attendance, role, password } = req.body;
+  const { name, phoneNumber, subscriptionEndDate, attendance, role } = req.body; // Am eliminat 'password' de aici
   try {
     let user = await User.findById(req.params.id);
     if (!user) {
@@ -84,11 +76,15 @@ exports.updateUser = async (req, res) => {
         user.attendance = attendance;
     }
 
+    // NOTĂ: Dacă modelul User are un hook pre('save') care criptează parola,
+    // și nu ești sigur că updateUser nu o apelează, poți gestiona separat.
+    // Dar în general, 'password' nu ar trebui să fie în body-ul lui updateUser.
+
     await user.save();
     res.json({ msg: 'Utilizator actualizat', user: user.toObject({ getters: true, versionKey: false, transform: (doc, ret) => { delete ret.password; return ret; } }) });
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Eroare server');
+    console.error('Eroare la updateUser:', err.message);
+    res.status(500).send('Eroare server la actualizarea utilizatorului.');
   }
 };
 
@@ -104,8 +100,8 @@ exports.deleteUser = async (req, res) => {
     await SimulationResult.deleteMany({ userId: req.params.id });
     res.json({ msg: 'Utilizator șters cu succes și rezultatele asociate' });
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Eroare server');
+    console.error('Eroare la deleteUser:', err.message);
+    res.status(500).send('Eroare server la ștergerea utilizatorului.');
   }
 };
 
@@ -133,7 +129,39 @@ exports.createUser = async (req, res) => {
         res.status(201).json({ msg: 'Utilizator creat cu succes!', user: user.toObject({ getters: true, versionKey: false, transform: (doc, ret) => { delete ret.password; return ret; } }) });
 
     } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Eroare server');
+        console.error('Eroare la createUser:', err.message);
+        res.status(500).send('Eroare server la crearea utilizatorului.');
     }
+};
+
+// MODIFICAT: Funcția pentru schimbarea parolei - adăugăm logare detaliată
+exports.changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.id; // Extrage ID-ul utilizatorului din token
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ msg: 'Utilizatorul nu a fost găsit.' });
+    }
+
+    // Verifică parola curentă
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ msg: 'Parola curentă este incorectă.' });
+    }
+
+    // Criptează noua parolă
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt); // Atribuie noua parolă hashuită
+
+    await user.save(); // Aici poate apărea eroarea dacă password hook-ul este greșit
+
+    res.json({ msg: 'Parola a fost schimbată cu succes.' });
+  } catch (err) {
+    // NOU: Loghează eroarea completă, inclusiv stiva, pentru debugging pe Render
+    console.error('Eroare backend la schimbarea parolei:', err.message);
+    console.error('Detalii eroare:', err); // Loghează întregul obiect de eroare
+    res.status(500).send('Eroare de server la schimbarea parolei. Te rugăm să încerci din nou.');
+  }
 };
