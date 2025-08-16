@@ -2,7 +2,6 @@ const User = require('../models/User');
 const SimulationResult = require('../models/SimulationResult');
 const bcrypt = require('bcryptjs');
 
-// NOU: Funcția pentru a obține utilizatorii cu paginare și filtre
 exports.getUsersWithPagination = async (req, res) => {
     const { page = 1, limit = 10, filter = 'all' } = req.query;
 
@@ -38,7 +37,6 @@ exports.getUsersWithPagination = async (req, res) => {
     }
 };
 
-// Obține detalii despre un utilizator specific
 exports.getUserDetails = async (req, res) => {
   try {
     if (req.user.role === 'client' && req.user.id !== req.params.id) {
@@ -58,7 +56,6 @@ exports.getUserDetails = async (req, res) => {
   }
 };
 
-// Editează detalii utilizator (doar admin)
 exports.updateUser = async (req, res) => {
   const { name, phoneNumber, subscriptionEndDate, attendance, role } = req.body;
   try {
@@ -84,7 +81,6 @@ exports.updateUser = async (req, res) => {
   }
 };
 
-// Șterge utilizator (doar admin)
 exports.deleteUser = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -101,34 +97,38 @@ exports.deleteUser = async (req, res) => {
   }
 };
 
-// Creează un utilizator nou (doar admin)
 exports.createUser = async (req, res) => {
-    const { name, phoneNumber, password, role } = req.body;
-    try {
-        let user = await User.findOne({ phoneNumber });
-        if (user) {
-            return res.status(400).json({ msg: 'Un utilizator cu acest număr de telefon există deja.' });
-        }
+    const { name, phoneNumber, password, role } = req.body;
+    console.log('createUser: Încercare de creare utilizator. Număr:', phoneNumber); // Debugging
+    try {
+        let user = await User.findOne({ phoneNumber });
+        if (user) {
+            console.log('createUser: Număr de telefon existent.', phoneNumber); // Debugging
+            return res.status(400).json({ msg: 'Un utilizator cu acest număr de telefon există deja.' });
+        }
 
-        // MODIFICAT: Nu mai hashui parola aici. Va fi hashuită de hook-ul pre('save') din model.
-        user = new User({
-            name,
-            phoneNumber,
-            password, // Trimitem parola ca text simplu
-            role: role || 'client',
-            subscriptionEndDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1))
-        });
+        user = new User({
+            name,
+            phoneNumber,
+            password, // Parola este trimisă ca text simplu, va fi hashuită de hook-ul pre('save')
+            role: role || 'client',
+            subscriptionEndDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1))
+        });
 
-        await user.save(); // Aici va rula hook-ul pre('save') și va hashui parola
-        res.status(201).json({ msg: 'Utilizator creat cu succes!', user: user.toObject({ getters: true, versionKey: false, transform: (doc, ret) => { delete ret.password; return ret; } }) });
+        console.log('createUser: User creat în memorie. Încerc salvarea...'); // Debugging
+        await user.save(); // Aici va rula hook-ul pre('save') și va hashui parola
+        console.log('createUser: Utilizator salvat cu succes în DB.'); // Debugging
 
-    } catch (err) {
-        console.error('Eroare la createUser:', err.message);
-        res.status(500).send('Eroare server la crearea utilizatorului.');
-    }
+        res.status(201).json({ msg: 'Utilizator creat cu succes!', user: user.toObject({ getters: true, versionKey: false, transform: (doc, ret) => { delete ret.password; return ret; } }) });
+
+    } catch (err) {
+        // Logare detaliată pentru a vedea exact ce eroare apare
+        console.error('Eroare la createUser (backend):', err.message);
+        console.error('Detalii eroare (stack):', err.stack);
+        res.status(500).send('Eroare server la crearea utilizatorului.');
+    }
 };
 
-// Funcția pentru schimbarea parolei - FĂRĂ HASHUIRE MANUALĂ AICI
 exports.changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
@@ -144,11 +144,7 @@ exports.changePassword = async (req, res) => {
       return res.status(400).json({ msg: 'Parola curentă este incorectă.' });
     }
 
-    // MODIFICAT: Atribuie parola nouă ca text simplu.
-    // Hook-ul pre('save') din models/User.js o va hashui.
     user.password = newPassword; 
-
-    // Salvează utilizatorul. Aici va fi executat hook-ul pre('save') din models/User.js
     await user.save(); 
 
     res.json({ msg: 'Parola a fost schimbată cu succes.' });
