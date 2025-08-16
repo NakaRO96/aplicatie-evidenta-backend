@@ -1,34 +1,26 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs'); // Asigură-te că bcrypt este importat și aici
+const express = require('express');
+const router = express.Router();
+const authMiddleware = require('../middleware/authMiddleware');
+const adminMiddleware = require('../middleware/adminMiddleware');
+const userController = require('../controllers/userController');
 
-const userSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  phoneNumber: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  role: { type: String, enum: ['admin', 'client'], default: 'client' },
-  resetPasswordToken: { type: String, default: null },
-  resetPasswordExpires: { type: Date, default: null },
-  subscriptionEndDate: { type: Date, default: null },
-  attendance: [
-    {
-      date: { type: Date, required: true },
-      present: { type: Boolean, default: true }
-    }
-  ],
-}, { timestamps: true });
+// CORECTAT: Linia 'const User = require('./models/User');' a fost eliminată de aici.
+// Modelul User este importat direct în controllere (userController.js) și middleware-uri (dacă e necesar).
 
-// Hook-ul pre('save') care criptează parola DOAR dacă a fost modificată
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) {
-    return next();
-  }
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-  next();
-});
+// RUTA MODIFICATĂ pentru a obține toți utilizatorii cu paginare
+router.get('/', authMiddleware, adminMiddleware, userController.getUsersWithPagination);
 
-// === MODIFICARE CRUCIALĂ ȘI DEFINITIVĂ PENTRU A PREVENI OverwriteModelError ===
-// Aceasta verifică dacă modelul 'User' a fost deja definit.
-// Dacă `mongoose.models.User` există (adică modelul e deja înregistrat), îl refolosește.
-// Altfel, îl definește. Acest lucru previne eroarea de a defini același model de două ori.
-module.exports = mongoose.models.User || mongoose.model('User', userSchema);
+// RUTA NOUĂ PENTRU A CREA UN UTILIZATOR
+router.post('/', authMiddleware, adminMiddleware, userController.createUser);
+
+// RUTA PENTRU SCHIMBAREA PAROLEI - trebuie să fie înainte de rutele cu ID generic
+router.put('/change-password', authMiddleware, userController.changePassword); // Fără adminMiddleware aici, permițând oricui să-și schimbe parola
+
+// Ruta pentru a obține detalii despre un utilizator specific
+router.get('/:id', authMiddleware, userController.getUserDetails);
+
+// Rute pentru a edita și șterge utilizator
+router.put('/:id', authMiddleware, adminMiddleware, userController.updateUser);
+router.delete('/:id', authMiddleware, adminMiddleware, userController.deleteUser);
+
+module.exports = router;
