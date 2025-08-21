@@ -1,21 +1,8 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
-const userSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  phoneNumber: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  role: { type: String, enum: ['admin', 'client'], default: 'client' },
-  resetPasswordToken: { type: String, default: null },
-  resetPasswordExpires: { type: Date, default: null },
-  subscriptionEndDate: { type: Date, default: null },
-  attendance: [
-    {
-      date: { type: Date, required: true },
-      present: { type: Boolean, default: true }
-    }
-  ],
-}, { timestamps: true });
+// Ruta pentru a obține toți utilizatorii - necesită autentificare și rol de admin
+router.get('/', authMiddleware, adminMiddleware, userController.getAllUsers);
 
 // Hook-ul pre('save') care criptează parola DOAR dacă a fost modificată
 userSchema.pre('save', async function(next) {

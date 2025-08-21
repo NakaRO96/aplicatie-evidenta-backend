@@ -2,39 +2,25 @@ const User = require('../models/User');
 const SimulationResult = require('../models/SimulationResult');
 const bcrypt = require('bcryptjs');
 
-exports.getUsersWithPagination = async (req, res) => {
-    const { page = 1, limit = 10, filter = 'all' } = req.query;
+// Obține toți utilizatorii (cu filtre pentru activi/expirați/toți)
+exports.getAllUsers = async (req, res) => {
+  try {
+    let users;
+    const filter = req.query.filter; // Ex: ?filter=active, ?filter=expired
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    let query = {};
-
-    if (filter === 'active') {
-      const now = new Date();
-      query.subscriptionEndDate = { $gte: now };
-    } else if (filter === 'expired') {
-      const now = new Date();
-      query.subscriptionEndDate = { $lt: now };
-    }
-    
-    try {
-        const users = await User.find(query)
-            .sort({ subscriptionEndDate: -1 })
-            .skip(skip)
-            .limit(parseInt(limit))
-            .select('-password');
-        
-        const totalUsers = await User.countDocuments(query);
-        
-        res.json({
-            users,
-            totalPages: Math.ceil(totalUsers / limit),
-            currentPage: parseInt(page),
-            totalUsers
-        });
-    } catch (err) {
-        console.error('Eroare la getUsersWithPagination:', err.message);
-        res.status(500).send('Eroare server la preluarea utilizatorilor.');
-    }
+    // Caută userii și nu include parola în rezultat
+    if (filter === 'active') {
+      users = await User.find({ subscriptionEndDate: { $gte: new Date() } }).select('-password');
+    } else if (filter === 'expired') {
+      users = await User.find({ subscriptionEndDate: { $lt: new Date() } }).select('-password');
+    } else { // 'all' sau fără filtru
+      users = await User.find().select('-password');
+    }
+    res.json(users);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Eroare server');
+  }
 };
 
 exports.getUserDetails = async (req, res) => {
@@ -99,58 +85,28 @@ exports.deleteUser = async (req, res) => {
 
 exports.createUser = async (req, res) => {
     const { name, phoneNumber, password, role } = req.body;
-    console.log('createUser: Încercare de creare utilizator. Număr:', phoneNumber); // Debugging
     try {
         let user = await User.findOne({ phoneNumber });
         if (user) {
-            console.log('createUser: Număr de telefon existent.', phoneNumber); // Debugging
             return res.status(400).json({ msg: 'Un utilizator cu acest număr de telefon există deja.' });
         }
 
         user = new User({
             name,
             phoneNumber,
-            password, // Parola este trimisă ca text simplu, va fi hashuită de hook-ul pre('save')
-            role: role || 'client',
-            subscriptionEndDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1))
+            password,
+            role: role || 'client', // Rolul implicit este 'client'
+            subscriptionEndDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)) // Abonament valabil 1 an implicit
         });
 
-        console.log('createUser: User creat în memorie. Încerc salvarea...'); // Debugging
-        await user.save(); // Aici va rula hook-ul pre('save') și va hashui parola
-        console.log('createUser: Utilizator salvat cu succes în DB.'); // Debugging
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(password, salt);
 
+        await user.save();
         res.status(201).json({ msg: 'Utilizator creat cu succes!', user: user.toObject({ getters: true, versionKey: false, transform: (doc, ret) => { delete ret.password; return ret; } }) });
 
     } catch (err) {
-        // Logare detaliată pentru a vedea exact ce eroare apare
-        console.error('Eroare la createUser (backend):', err.message);
-        console.error('Detalii eroare (stack):', err.stack);
-        res.status(500).send('Eroare server la crearea utilizatorului.');
+        console.error(err.message);
+        res.status(500).send('Eroare server');
     }
-};
-
-exports.changePassword = async (req, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
-    const userId = req.user.id;
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ msg: 'Utilizatorul nu a fost găsit.' });
-    }
-
-    const isMatch = await bcrypt.compare(currentPassword, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ msg: 'Parola curentă este incorectă.' });
-    }
-
-    user.password = newPassword; 
-    await user.save(); 
-
-    res.json({ msg: 'Parola a fost schimbată cu succes.' });
-  } catch (err) {
-    console.error('Eroare backend la schimbarea parolei:', err.message);
-    console.error('Detalii eroare (stack):', err.stack);
-    res.status(500).send('Eroare de server la schimbarea parolei. Te rugăm să încerci din nou.');
-  }
 };
