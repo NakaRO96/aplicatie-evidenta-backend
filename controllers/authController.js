@@ -12,14 +12,15 @@ exports.register = async (req, res) => {
       return res.status(400).json({ msg: 'Numărul de telefon este deja înregistrat.' });
     }
 
+    // MODIFICAT: Nu mai hashui aici parola. Va fi hashuită de hook-ul pre('save') din model.
     user = new User({
       name,
       phoneNumber,
-      password,
+      password, // Trimitem parola ca text simplu
       role: role || 'client'
     });
 
-    await user.save();
+    await user.save(); // Aici va rula hook-ul pre('save') și va hashui parola
 
     const payload = {
       user: {
@@ -121,56 +122,17 @@ exports.resetPassword = async (req, res) => {
       return res.status(400).json({ message: 'Token de resetare invalid sau expirat.' });
     }
 
-    user.password = password;
+    // MODIFICAT: Nu mai hashui parola aici. Va fi hashuită de hook-ul pre('save') din model.
+    user.password = password; 
 
     user.resetPasswordToken = null;
     user.resetPasswordExpires = null;
 
-    await user.save();
+    await user.save(); // Aici va rula hook-ul pre('save') și va hashui parola
 
     res.status(200).json({ message: 'Parola a fost resetată cu succes.' });
   } catch (error) {
     console.error('Eroare la reset password:', error);
     res.status(500).json({ message: 'A apărut o eroare la procesarea cererii.' });
-  }
-};
-
-// Funcția adăugată pentru a prelua toți utilizatorii
-exports.getAllUsers = async (req, res) => {
-  try {
-    const { filter, searchQuery, page = 1, limit = 10 } = req.query;
-    let query = {};
-
-    // Logică pentru filtru de abonament
-    if (filter === 'active') {
-      query.subscriptionEndDate = { $gt: new Date() };
-    } else if (filter === 'expired') {
-      query.subscriptionEndDate = { $lte: new Date() };
-    }
-
-    // Logică pentru căutare după nume sau număr de telefon
-    if (searchQuery) {
-      query.$or = [
-        { name: new RegExp(searchQuery, 'i') },
-        { phoneNumber: new RegExp(searchQuery, 'i') },
-      ];
-    }
-
-    // Asigură-te că utilizatorii "admin" nu sunt incluși în listă
-    query.role = 'client';
-
-    const count = await User.countDocuments(query);
-    const users = await User.find(query)
-      .limit(parseInt(limit))
-      .skip((parseInt(page) - 1) * parseInt(limit));
-
-    res.status(200).json({
-      users,
-      totalPages: Math.ceil(count / limit),
-      currentPage: parseInt(page),
-    });
-  } catch (err) {
-    console.error('Eroare la preluarea utilizatorilor:', err);
-    res.status(500).json({ msg: 'Eroare server la preluarea utilizatorilor.' });
   }
 };
