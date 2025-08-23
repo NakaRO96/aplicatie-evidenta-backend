@@ -150,6 +150,37 @@ const addAttendance = async (req, res) => {
   }
 };
 
+// --- FUNCTIA NOU ADĂUGATĂ ---
+const createUser = async (req, res) => {
+  const { name, phoneNumber, password, subscriptionEndDate, role } = req.body;
+
+  try {
+    // Verificăm dacă utilizatorul există deja
+    let user = await User.findOne({ phoneNumber });
+    if (user) {
+      return res.status(400).json({ msg: 'Numărul de telefon este deja înregistrat.' });
+    }
+
+    // Creăm un nou utilizator
+    user = new User({
+      name,
+      phoneNumber,
+      password,
+      subscriptionEndDate,
+      role: role || 'client' // Rolul implicit este 'client' dacă nu este specificat
+    });
+
+    // Parola va fi hashuita automat de middleware-ul pre-save din modelul User
+    await user.save();
+
+    res.status(201).json({ msg: 'Contul a fost creat cu succes!' });
+
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Eroare de server.');
+  }
+};
+
 // Exportăm toate funcțiile ca un singur obiect
 module.exports = {
   getAllUsers,
@@ -158,5 +189,6 @@ module.exports = {
   getUserById,
   updateUser,
   deleteUser,
-  addAttendance
+  addAttendance,
+  createUser // Am adăugat și funcția de creare a utilizatorului aici
 };

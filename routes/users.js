@@ -4,6 +4,11 @@ const authMiddleware = require('../middleware/authMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
 const userController = require('../controllers/userController');
 
+// @route   POST api/users
+// @desc    Creează un utilizator nou (doar pentru admini)
+// @access  Privat (Admin)
+router.post('/', authMiddleware, adminMiddleware, userController.createUser);
+
 // @route   GET api/users
 // @desc    Obține toți utilizatorii (doar pentru admin)
 // @access  Privat (Admin)

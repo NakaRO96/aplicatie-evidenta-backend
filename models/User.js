@@ -1,6 +1,5 @@
-// models/User.js
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs'); // Asigură-te că bcrypt este importat și aici
+const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -16,6 +15,12 @@ const userSchema = new mongoose.Schema({
       present: { type: Boolean, default: true }
     }
   ],
+  simulationResults: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'SimulationResult',
+    },
+  ],
 }, { timestamps: true });
 
 userSchema.pre('save', async function(next) {
@@ -27,5 +32,4 @@ userSchema.pre('save', async function(next) {
   next();
 });
 
-// === ACEASTA ESTE LINIA CHEIE CARE REZOLVĂ OverwriteModelError ȘI ASIGURĂ EXPORTUL CORECT ===
 module.exports = mongoose.models.User || mongoose.model('User', userSchema);
