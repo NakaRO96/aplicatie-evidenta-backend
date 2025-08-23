@@ -12,15 +12,14 @@ exports.register = async (req, res) => {
       return res.status(400).json({ msg: 'Numărul de telefon este deja înregistrat.' });
     }
 
-    // MODIFICAT: Nu mai hashui aici parola. Va fi hashuită de hook-ul pre('save') din model.
     user = new User({
       name,
       phoneNumber,
-      password, // Trimitem parola ca text simplu
+      password,
       role: role || 'client'
     });
 
-    await user.save(); // Aici va rula hook-ul pre('save') și va hashui parola
+    await user.save();
 
     const payload = {
       user: {
@@ -122,13 +121,12 @@ exports.resetPassword = async (req, res) => {
       return res.status(400).json({ message: 'Token de resetare invalid sau expirat.' });
     }
 
-    // MODIFICAT: Nu mai hashui parola aici. Va fi hashuită de hook-ul pre('save') din model.
-    user.password = password; 
+    user.password = password;
 
     user.resetPasswordToken = null;
     user.resetPasswordExpires = null;
 
-    await user.save(); // Aici va rula hook-ul pre('save') și va hashui parola
+    await user.save();
 
     res.status(200).json({ message: 'Parola a fost resetată cu succes.' });
   } catch (error) {
