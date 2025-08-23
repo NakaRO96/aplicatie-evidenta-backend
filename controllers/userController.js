@@ -1,8 +1,7 @@
 const User = require('../models/User');
 
-// @desc    Obține toți utilizatorii cu opțiuni de filtrare și căutare
-// @route   GET /api/users
-exports.getAllUsers = async (req, res) => {
+// Definirea tuturor funcțiilor ca variabile constante
+const getAllUsers = async (req, res) => {
   try {
     const { filter, searchQuery, page = 1, limit = 10 } = req.query;
     let query = {};
@@ -38,9 +37,7 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
-// @desc    Obține detaliile utilizatorului autentificat
-// @route   GET /api/users/me
-exports.getLoggedInUser = async (req, res) => {
+const getLoggedInUser = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
     if (!user) {
@@ -53,9 +50,7 @@ exports.getLoggedInUser = async (req, res) => {
   }
 };
 
-// @desc    Obține toți utilizatorii cu rol de 'client'
-// @route   GET /api/users/candidates
-exports.getCandidates = async (req, res) => {
+const getCandidates = async (req, res) => {
   try {
     const candidates = await User.find({ role: 'client' }).select('-password');
     res.json(candidates);
@@ -65,18 +60,14 @@ exports.getCandidates = async (req, res) => {
   }
 };
 
-// @desc    Obține un utilizator după ID
-// @route   GET /api/users/:id
-exports.getUserById = async (req, res) => {
+const getUserById = async (req, res) => {
   try {
-    // Populăm datele de la simulări, ca să le putem afișa pe frontend
     const user = await User.findById(req.params.id).populate('simulationResults');
 
     if (!user) {
       return res.status(404).json({ msg: 'Utilizatorul nu a fost găsit.' });
     }
 
-    // Returnăm utilizatorul, simulările și prezența
     res.json({
       user,
       simulationResults: user.simulationResults,
@@ -90,9 +81,7 @@ exports.getUserById = async (req, res) => {
   }
 };
 
-// @desc    Actualizează detaliile unui utilizator
-// @route   PUT /api/users/:id
-exports.updateUser = async (req, res) => {
+const updateUser = async (req, res) => {
   const { name, phoneNumber, subscriptionEndDate } = req.body;
 
   try {
@@ -102,12 +91,10 @@ exports.updateUser = async (req, res) => {
       return res.status(404).json({ msg: 'Utilizatorul nu a fost găsit.' });
     }
 
-    // Prevenim modificarea de către un utilizator obișnuit a altor conturi
     if (req.user.role !== 'admin' && req.user.id !== req.params.id) {
         return res.status(403).json({ msg: 'Acces neautorizat.' });
     }
 
-    // Actualizăm doar câmpurile care au fost trimise
     if (name) user.name = name;
     if (phoneNumber) user.phoneNumber = phoneNumber;
     if (subscriptionEndDate) user.subscriptionEndDate = new Date(subscriptionEndDate);
@@ -120,9 +107,7 @@ exports.updateUser = async (req, res) => {
   }
 };
 
-// @desc    Șterge un utilizator
-// @route   DELETE /api/users/:id
-exports.deleteUser = async (req, res) => {
+const deleteUser = async (req, res) => {
   try {
     let user = await User.findById(req.params.id);
 
@@ -130,7 +115,6 @@ exports.deleteUser = async (req, res) => {
       return res.status(404).json({ msg: 'Utilizatorul nu a fost găsit.' });
     }
 
-    // Prevenim ștergerea propriului cont de către un admin
     if (req.user.id === req.params.id) {
       return res.status(400).json({ msg: 'Nu poți șterge propriul cont.' });
     }
@@ -143,9 +127,7 @@ exports.deleteUser = async (req, res) => {
   }
 };
 
-// @desc    Adaugă o înregistrare de prezență
-// @route   POST /api/users/:id/attendance
-exports.addAttendance = async (req, res) => {
+const addAttendance = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) {
@@ -168,7 +150,7 @@ exports.addAttendance = async (req, res) => {
   }
 };
 
-
+// Exportăm toate funcțiile ca un singur obiect
 module.exports = {
   getAllUsers,
   getLoggedInUser,
