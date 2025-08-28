@@ -1,5 +1,4 @@
 const User = require('../models/User');
-// Am adăugat importul modelului SimulationResult pentru a putea face interogarea
 const SimulationResult = require('../models/SimulationResult');
 
 // Definirea tuturor funcțiilor ca variabile constante
@@ -64,17 +63,14 @@ const getCandidates = async (req, res) => {
 
 const getUserById = async (req, res) => {
   try {
-    // Caută utilizatorul
     const user = await User.findById(req.params.id);
 
     if (!user) {
       return res.status(404).json({ msg: 'Utilizatorul nu a fost găsit.' });
     }
 
-    // Caută separat toate rezultatele simulărilor asociate cu acest utilizator
     const simulationResults = await SimulationResult.find({ user: req.params.id }).sort({ date: -1 });
 
-    // Trimite utilizatorul și rezultatele simulărilor în același răspuns
     res.json({
       user,
       simulationResults,
@@ -89,7 +85,7 @@ const getUserById = async (req, res) => {
 };
 
 const updateUser = async (req, res) => {
-  const { name, phoneNumber, subscriptionEndDate } = req.body;
+  const { name, phoneNumber, subscriptionEndDate, attendance } = req.body;
 
   try {
     let user = await User.findById(req.params.id);
@@ -105,6 +101,8 @@ const updateUser = async (req, res) => {
     if (name) user.name = name;
     if (phoneNumber) user.phoneNumber = phoneNumber;
     if (subscriptionEndDate) user.subscriptionEndDate = new Date(subscriptionEndDate);
+    // Adaugăm posibilitatea de a actualiza lista de prezențe
+    if (attendance) user.attendance = attendance;
 
     await user.save();
     res.json(user);
@@ -161,22 +159,19 @@ const createUser = async (req, res) => {
   const { name, phoneNumber, password, subscriptionEndDate, role } = req.body;
 
   try {
-    // Verificăm dacă utilizatorul există deja
     let user = await User.findOne({ phoneNumber });
     if (user) {
       return res.status(400).json({ msg: 'Numărul de telefon este deja înregistrat.' });
     }
 
-    // Creăm un nou utilizator
     user = new User({
       name,
       phoneNumber,
       password,
       subscriptionEndDate,
-      role: role || 'client' // Rolul implicit este 'client' dacă nu este specificat
+      role: role || 'client'
     });
 
-    // Parola va fi hashuita automat de middleware-ul pre-save din modelul User
     await user.save();
 
     res.status(201).json({ msg: 'Contul a fost creat cu succes!' });
