@@ -1,4 +1,6 @@
 const User = require('../models/User');
+// Am adăugat importul modelului SimulationResult pentru a putea face interogarea
+const SimulationResult = require('../models/SimulationResult');
 
 // Definirea tuturor funcțiilor ca variabile constante
 const getAllUsers = async (req, res) => {
@@ -62,15 +64,20 @@ const getCandidates = async (req, res) => {
 
 const getUserById = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).populate('simulationResults');
+    // Caută utilizatorul
+    const user = await User.findById(req.params.id);
 
     if (!user) {
       return res.status(404).json({ msg: 'Utilizatorul nu a fost găsit.' });
     }
 
+    // Caută separat toate rezultatele simulărilor asociate cu acest utilizator
+    const simulationResults = await SimulationResult.find({ user: req.params.id }).sort({ date: -1 });
+
+    // Trimite utilizatorul și rezultatele simulărilor în același răspuns
     res.json({
       user,
-      simulationResults: user.simulationResults,
+      simulationResults,
     });
   } catch (err) {
     console.error(err.message);
@@ -150,7 +157,6 @@ const addAttendance = async (req, res) => {
   }
 };
 
-// --- FUNCTIA NOU ADĂUGATĂ ---
 const createUser = async (req, res) => {
   const { name, phoneNumber, password, subscriptionEndDate, role } = req.body;
 
@@ -190,5 +196,5 @@ module.exports = {
   updateUser,
   deleteUser,
   addAttendance,
-  createUser // Am adăugat și funcția de creare a utilizatorului aici
+  createUser
 };
