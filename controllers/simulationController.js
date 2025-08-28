@@ -4,7 +4,7 @@ const User = require('../models/User');
 // Adaugă un nou rezultat de simulare (doar admin)
 exports.addSimulationResult = async (req, res) => {
   const {
-    userId,
+    user, // Am schimbat 'userId' în 'user' pentru a se potrivi cu frontend-ul
     rawTime,
     penaltyTime,
     totalTime,
@@ -15,7 +15,7 @@ exports.addSimulationResult = async (req, res) => {
 
   try {
     const newResult = new SimulationResult({
-      userId,
+      user, // Am schimbat 'userId' în 'user'
       rawTime,
       penaltyTime,
       totalTime,
